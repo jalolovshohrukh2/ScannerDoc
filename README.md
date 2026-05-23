@@ -142,8 +142,10 @@ on Vercel — it's serverless, has no persistent disk, and our Tesseract worker
 ### Frontend → Vercel
 
 1. Sign up at https://vercel.com and **Import Project** from your GitHub repo.
-2. The root `vercel.json` sets the build command, output directory, and
-   framework — Vercel needs no manual override.
+2. The root `vercel.json` sets install/build commands and output directory.
+   **Leave "Root Directory" blank** in Vercel project settings — do NOT set
+   it to `frontend`. If you do, Vercel will switch its working directory and
+   the workspace install will fail with "No workspaces found".
 3. **Environment Variables** (Settings → Environment Variables):
    - `VITE_API_URL` = your Railway backend URL (no trailing slash)
 4. Deploy. You'll get a `https://...vercel.app` URL.
