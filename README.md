@@ -73,16 +73,12 @@ export interface OcrEngine {
 }
 ```
 
-Three engines ship in the box, selected with `OCR_ENGINE` in `backend/.env`:
+Two engines ship in the box, selected with `OCR_ENGINE` in `backend/.env`:
 
 - `OCR_ENGINE=tesseract` (default) — offline, free. Uses tesseract.js with a
   dedicated MRZ worker (OCR-B charset whitelist, multi-rotation, multi-preprocess
   voting, check-digit-aware error correction) and a visual worker (rus+eng for
   Cyrillic). Realistic accuracy on phone photos: ~85%.
-- `OCR_ENGINE=ocrspace` — free cloud OCR. Set `OCR_SPACE_API_KEY` (get a free
-  key at https://ocr.space/ocrapi/freekey — no credit card, 25k/month).
-  Calls https://api.ocr.space using Engine 2 (multilingual, auto-detect).
-  Realistic accuracy: ~92%. Cyrillic supported. Good middle ground.
 - `OCR_ENGINE=google` — best accuracy. Requires `GOOGLE_VISION_API_KEY`. Calls
   Google Cloud Vision's `DOCUMENT_TEXT_DETECTION` endpoint. ~99% accuracy on
   real phone photos; ~$1.50 per 1000 scans (first 1000/month free).

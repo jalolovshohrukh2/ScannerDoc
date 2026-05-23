@@ -5,7 +5,6 @@ import path from 'path';
 import { LocalFileStorage } from './services/storage/LocalFileStorage';
 import { TesseractEngine } from './services/ocr/TesseractEngine';
 import { GoogleVisionEngine } from './services/ocr/GoogleVisionEngine';
-import { OcrSpaceEngine } from './services/ocr/OcrSpaceEngine';
 import type { OcrEngine } from './services/ocr/OcrEngine';
 import { DocumentScanService } from './services/documentScan';
 import { documentsRouter } from './routes/documents';
@@ -47,16 +46,6 @@ function createOcrEngine(): { engine: OcrEngine; name: string } {
     }
     console.log('[scannerdoc] OCR engine: Google Cloud Vision');
     return { engine: new GoogleVisionEngine(key), name: 'google' };
-  }
-  if (which === 'ocrspace') {
-    const key = process.env.OCR_SPACE_API_KEY || 'helloworld';
-    if (key === 'helloworld') {
-      console.warn(
-        '[scannerdoc] OCR_SPACE_API_KEY not set — using the public "helloworld" key. Get a free one at https://ocr.space/ocrapi/freekey (no card required, 25k/month).',
-      );
-    }
-    console.log('[scannerdoc] OCR engine: OCR.space');
-    return { engine: new OcrSpaceEngine({ apiKey: key }), name: 'ocrspace' };
   }
   console.log('[scannerdoc] OCR engine: Tesseract');
   return { engine: new TesseractEngine(), name: 'tesseract' };
