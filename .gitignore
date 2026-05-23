@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+backend/uploads/
+backend/data.sqlite
+backend/data.sqlite-journal
+backend/data.sqlite-shm
+backend/data.sqlite-wal
+backend/*.traineddata
+*.tsbuildinfo
+.claude/
+.DS_Store
