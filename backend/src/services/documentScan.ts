@@ -1,6 +1,7 @@
 import type { OcrEngine } from './ocr/OcrEngine';
 import type { FileStorage } from './storage/FileStorage';
 import { extractMrzLines, parseMrz } from './mrz/parseMrz';
+import { parseVisualText, EMPTY_SUGGESTED } from './visual/parseVisualText';
 import type { DocType, ScannedDocument, ScanWarning } from '../types/ScannedDocument';
 
 export interface ScanInput {
@@ -32,20 +33,33 @@ export class DocumentScanService implements DocumentScanner {
 
     const isNationalId = input.docType === 'national_id';
     const mrzSourceBuffer = isNationalId && input.back ? input.back.buffer : input.front.buffer;
-    // Visual side: for national_id the visual (with photo + Cyrillic) is the front;
-    // for passport everything is on the data page, so visual === MRZ source.
-    const visualSourceBuffer = input.front.buffer;
 
     const mrzText = await this.ocr.extractText(mrzSourceBuffer, 'mrz');
     if (process.env.SCAN_DEBUG === '1') {
       console.log('[scan] MRZ OCR text:\n' + mrzText);
     }
 
-    // Visual OCR — skip the round-trip if the buffer is identical (passport case).
-    const visualText =
-      visualSourceBuffer === mrzSourceBuffer
-        ? mrzText
-        : await this.ocr.extractText(visualSourceBuffer, 'visual');
+    // Visual side(s). For national_id we OCR both front (photo + visual fields)
+    // and back (issuing authority etc.) and concatenate. For passport everything
+    // is on the front data page — same buffer as MRZ — so just reuse.
+    let visualText = '';
+    if (isNationalId) {
+      const frontVisualText = await this.ocr.extractText(input.front.buffer, 'visual');
+      const backVisualText = input.back
+        ? await this.ocr.extractText(input.back.buffer, 'visual')
+        : '';
+      visualText = backVisualText
+        ? `${frontVisualText}\n---\n${backVisualText}`
+        : frontVisualText;
+    } else {
+      // Passport: visual = MRZ source. Avoid a redundant call when possible.
+      visualText = mrzText && mrzText.length > 100 ? mrzText : await this.ocr.extractText(input.front.buffer, 'visual');
+    }
+    if (process.env.SCAN_DEBUG === '1') {
+      console.log('[scan] visual OCR text:\n' + visualText);
+    }
+
+    const suggestedManual = visualText ? parseVisualText(visualText) : EMPTY_SUGGESTED;
 
     const extracted = extractMrzLines(mrzText, input.docType);
 
@@ -74,6 +88,7 @@ export class DocumentScanService implements DocumentScanner {
         },
         rawMrz: [],
         visualText,
+        suggestedManual,
         ocrEngine: this.engineName,
       };
     }
@@ -98,6 +113,7 @@ export class DocumentScanService implements DocumentScanner {
       },
       rawMrz: parsed.rawMrz,
       visualText,
+      suggestedManual,
       ocrEngine: this.engineName,
     };
   }

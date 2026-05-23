@@ -11,9 +11,22 @@ interface ReviewStepProps {
 
 export function ReviewStep({ scan, onConfirm, onBack }: ReviewStepProps) {
   const [fields, setFields] = useState(scan.fields);
-  const [manual, setManual] = useState<ManualFields>(EMPTY_MANUAL);
+  const [manual, setManual] = useState<ManualFields>(() => ({
+    ...EMPTY_MANUAL,
+    patronymic: scan.suggestedManual?.patronymic || '',
+    patronymicCyr: scan.suggestedManual?.patronymicCyr || '',
+    surnameCyr: scan.suggestedManual?.surnameCyr || '',
+    givenNamesCyr: scan.suggestedManual?.givenNamesCyr || '',
+    issuingAuthority: scan.suggestedManual?.issuingAuthority || '',
+    issuingAuthorityCyr: scan.suggestedManual?.issuingAuthorityCyr || '',
+    address: scan.suggestedManual?.address || '',
+  }));
   const [frontSrc, setFrontSrc] = useState<string | null>(null);
   const [backSrc, setBackSrc] = useState<string | null>(null);
+
+  const anyAutoFilled =
+    !!scan.suggestedManual &&
+    Object.values(scan.suggestedManual).some((v) => v && v.length > 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,9 +189,15 @@ export function ReviewStep({ scan, onConfirm, onBack }: ReviewStepProps) {
 
       <div className="field-group">
         <h3>Manual entry (not in MRZ)</h3>
+        {anyAutoFilled && (
+          <p className="subtle" style={{ marginTop: 0 }}>
+            Some fields below were auto-filled from the visual side of the document. Verify and edit
+            before saving.
+          </p>
+        )}
         <div className="grid-2">
           <div>
-            <label>Patronymic</label>
+            <label>Patronymic (Latin)</label>
             <input
               type="text"
               value={manual.patronymic}
@@ -186,11 +205,11 @@ export function ReviewStep({ scan, onConfirm, onBack }: ReviewStepProps) {
             />
           </div>
           <div>
-            <label>Issuing authority</label>
+            <label>Patronymic (Cyrillic)</label>
             <input
               type="text"
-              value={manual.issuingAuthority}
-              onChange={(e) => updateManual('issuingAuthority', e.target.value)}
+              value={manual.patronymicCyr}
+              onChange={(e) => updateManual('patronymicCyr', e.target.value)}
             />
           </div>
           <div>
@@ -207,6 +226,22 @@ export function ReviewStep({ scan, onConfirm, onBack }: ReviewStepProps) {
               type="text"
               value={manual.givenNamesCyr}
               onChange={(e) => updateManual('givenNamesCyr', e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Issuing authority (Latin)</label>
+            <input
+              type="text"
+              value={manual.issuingAuthority}
+              onChange={(e) => updateManual('issuingAuthority', e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Issuing authority (Cyrillic)</label>
+            <input
+              type="text"
+              value={manual.issuingAuthorityCyr}
+              onChange={(e) => updateManual('issuingAuthorityCyr', e.target.value)}
             />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>

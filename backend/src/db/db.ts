@@ -16,6 +16,13 @@ export function getDb(): Database.Database {
   return db;
 }
 
+function addColumnIfMissing(db: Database.Database, table: string, column: string, def: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.find((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  }
+}
+
 function migrate(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS clients (
@@ -24,6 +31,7 @@ function migrate(db: Database.Database) {
       surname TEXT NOT NULL,
       given_names TEXT NOT NULL,
       patronymic TEXT NOT NULL DEFAULT '',
+      patronymic_cyr TEXT NOT NULL DEFAULT '',
       surname_cyr TEXT NOT NULL DEFAULT '',
       given_names_cyr TEXT NOT NULL DEFAULT '',
       document_number TEXT NOT NULL,
@@ -32,6 +40,7 @@ function migrate(db: Database.Database) {
       sex TEXT NOT NULL DEFAULT '',
       expiry_date TEXT NOT NULL DEFAULT '',
       issuing_authority TEXT NOT NULL DEFAULT '',
+      issuing_authority_cyr TEXT NOT NULL DEFAULT '',
       address TEXT NOT NULL DEFAULT '',
       phone TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
@@ -58,9 +67,11 @@ function migrate(db: Database.Database) {
       client_sex TEXT NOT NULL DEFAULT '',
       client_expiry_date TEXT NOT NULL DEFAULT '',
       client_patronymic TEXT NOT NULL DEFAULT '',
+      client_patronymic_cyr TEXT NOT NULL DEFAULT '',
       client_surname_cyr TEXT NOT NULL DEFAULT '',
       client_given_names_cyr TEXT NOT NULL DEFAULT '',
       client_issuing_authority TEXT NOT NULL DEFAULT '',
+      client_issuing_authority_cyr TEXT NOT NULL DEFAULT '',
       client_address TEXT NOT NULL DEFAULT '',
       client_phone TEXT NOT NULL DEFAULT '',
       client_email TEXT NOT NULL DEFAULT '',
@@ -69,4 +80,10 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Idempotent column additions for older databases.
+  addColumnIfMissing(db, 'clients', 'patronymic_cyr', "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'clients', 'issuing_authority_cyr', "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'contracts', 'client_patronymic_cyr', "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'contracts', 'client_issuing_authority_cyr', "TEXT NOT NULL DEFAULT ''");
 }

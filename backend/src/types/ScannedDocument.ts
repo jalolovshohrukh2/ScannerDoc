@@ -22,6 +22,16 @@ export interface ScannedImages {
   backUrl?: string;
 }
 
+export interface SuggestedManual {
+  patronymic: string;
+  patronymicCyr: string;
+  surnameCyr: string;
+  givenNamesCyr: string;
+  issuingAuthority: string;
+  issuingAuthorityCyr: string;
+  address: string;
+}
+
 export interface ScannedDocument {
   docType: DocType;
   fields: ScannedFields;
@@ -29,5 +39,6 @@ export interface ScannedDocument {
   images: ScannedImages;
   rawMrz: string[];
   visualText: string;
+  suggestedManual: SuggestedManual;
   ocrEngine: string;
 }

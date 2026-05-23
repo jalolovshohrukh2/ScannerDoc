@@ -13,12 +13,24 @@ export interface ScannedFields {
 
 export interface ManualFields {
   patronymic: string;
+  patronymicCyr: string;
   surnameCyr: string;
   givenNamesCyr: string;
   issuingAuthority: string;
+  issuingAuthorityCyr: string;
   address: string;
   phone: string;
   email: string;
+}
+
+export interface SuggestedManual {
+  patronymic: string;
+  patronymicCyr: string;
+  surnameCyr: string;
+  givenNamesCyr: string;
+  issuingAuthority: string;
+  issuingAuthorityCyr: string;
+  address: string;
 }
 
 export interface ScanWarning {
@@ -38,6 +50,7 @@ export interface ScannedDocument {
   images: ScannedImages;
   rawMrz: string[];
   visualText: string;
+  suggestedManual: SuggestedManual;
   ocrEngine: string;
 }
 
@@ -54,9 +67,11 @@ export interface ScannerResult {
 
 export const EMPTY_MANUAL: ManualFields = {
   patronymic: '',
+  patronymicCyr: '',
   surnameCyr: '',
   givenNamesCyr: '',
   issuingAuthority: '',
+  issuingAuthorityCyr: '',
   address: '',
   phone: '',
   email: '',
