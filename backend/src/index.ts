@@ -13,10 +13,27 @@ import { contractsRouter } from './routes/contracts';
 import { getDb } from './db/db';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
-const UPLOAD_TOKEN = process.env.UPLOAD_TOKEN || 'dev-local-token-change-me';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const UPLOAD_TOKEN = process.env.UPLOAD_TOKEN || (IS_PROD ? '' : 'dev-local-token-change-me');
+if (IS_PROD && !UPLOAD_TOKEN) {
+  throw new Error('UPLOAD_TOKEN must be set in production');
+}
+
+const UPLOADS_DIR = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.join(process.cwd(), 'uploads');
+
+function corsCheck(origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) {
+  if (!origin) return cb(null, true);
+  if (CORS_ORIGINS.includes('*') || CORS_ORIGINS.includes(origin)) return cb(null, true);
+  cb(new Error(`CORS: origin ${origin} not allowed`));
+}
 
 function createOcrEngine(): { engine: OcrEngine; name: string } {
   const which = (process.env.OCR_ENGINE || 'tesseract').toLowerCase();
@@ -24,7 +41,7 @@ function createOcrEngine(): { engine: OcrEngine; name: string } {
     const key = process.env.GOOGLE_VISION_API_KEY;
     if (!key) {
       throw new Error(
-        'OCR_ENGINE=google but GOOGLE_VISION_API_KEY is not set. Get one at https://console.cloud.google.com/ (enable Cloud Vision API) and put it in backend/.env.',
+        'OCR_ENGINE=google but GOOGLE_VISION_API_KEY is not set. Get one at https://console.cloud.google.com/ (enable Cloud Vision API) and put it in your environment.',
       );
     }
     console.log('[scannerdoc] OCR engine: Google Cloud Vision');
@@ -42,7 +59,7 @@ async function main() {
   const scanner = new DocumentScanService(ocr, storage, engineName);
 
   const app = express();
-  app.use(cors({ origin: CORS_ORIGIN, credentials: false }));
+  app.use(cors({ origin: corsCheck, credentials: false }));
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -70,7 +87,9 @@ async function main() {
   app.use('/api/contracts', contractsRouter());
 
   app.listen(PORT, () => {
-    console.log(`[scannerdoc] backend listening on http://localhost:${PORT}`);
+    console.log(`[scannerdoc] backend listening on :${PORT}`);
+    console.log(`[scannerdoc] uploads dir: ${UPLOADS_DIR}`);
+    console.log(`[scannerdoc] CORS allowed: ${CORS_ORIGINS.join(', ')}`);
   });
 
   const shutdown = async () => {

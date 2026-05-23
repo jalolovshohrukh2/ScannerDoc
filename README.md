@@ -107,3 +107,57 @@ Images persist in `backend/uploads/` and are referenced by URL in the response.
 They are served from `/uploads/:id` behind a bearer token (`UPLOAD_TOKEN` in
 `backend/.env`) — not real auth, but not publicly listable either. Replace with
 real session auth when integrating into a production app.
+
+## Deploying
+
+Recommended split: **frontend on Vercel, backend on Railway**. Vercel is great
+at static React; Railway is the right shape for a long-running Node service
+that needs a real filesystem (uploads + sqlite). Don't try to host the backend
+on Vercel — it's serverless, has no persistent disk, and our Tesseract worker
++ better-sqlite3 + sharp don't fit that runtime well.
+
+### Backend → Railway
+
+1. Sign up at https://railway.app and create a **New Project → Deploy from
+   GitHub repo → ScannerDoc**.
+2. Railway auto-detects Node and uses the root `Procfile` (`web: npm run
+   start:backend`). The default build runs `npm install && npm run build`.
+3. **Add a Volume** (Service Settings → Volumes) and mount at `/data`. This
+   gives you persistent storage for uploaded images and the sqlite file across
+   deploys.
+4. **Variables** (Service Settings → Variables):
+   - `NODE_ENV` = `production`
+   - `UPLOAD_TOKEN` = a long random string (e.g. from `openssl rand -hex 32`)
+   - `CORS_ORIGIN` = your Vercel URL (set after Vercel deploy, e.g.
+     `https://scannerdoc.vercel.app`)
+   - `OCR_ENGINE` = `google`
+   - `GOOGLE_VISION_API_KEY` = your Cloud Vision key
+   - `UPLOADS_DIR` = `/data/uploads`
+   - `DB_PATH` = `/data/data.sqlite`
+5. Railway sets `PORT` automatically — don't override.
+6. Once deployed, copy the public URL (e.g.
+   `https://scannerdoc-backend.up.railway.app`). You'll paste it into Vercel
+   next.
+
+### Frontend → Vercel
+
+1. Sign up at https://vercel.com and **Import Project** from your GitHub repo.
+2. The root `vercel.json` sets the build command, output directory, and
+   framework — Vercel needs no manual override.
+3. **Environment Variables** (Settings → Environment Variables):
+   - `VITE_API_URL` = your Railway backend URL (no trailing slash)
+4. Deploy. You'll get a `https://...vercel.app` URL.
+5. **Go back to Railway** and update `CORS_ORIGIN` to that Vercel URL, then
+   redeploy.
+
+### Verify
+
+- Visit your Vercel URL → `/scanner` → upload a document.
+- Browser dev tools → Network tab → calls go to your Railway URL.
+- Railway logs (`Service → Deployments → View Logs`) show the OCR request.
+- New clients persist across Railway redeploys (sqlite is on the mounted volume).
+
+### Custom domain
+
+Both Vercel and Railway support custom domains. After pointing DNS, update
+`CORS_ORIGIN` on Railway and `VITE_API_URL` on Vercel accordingly.
