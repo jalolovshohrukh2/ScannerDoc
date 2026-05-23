@@ -27,7 +27,20 @@ function padOrTrim(line: string, targetLen: number): string {
   return line.padEnd(targetLen, '<');
 }
 
-export function extractMrzLines(ocrText: string, hint?: DocType): { lines: string[]; format: 'TD1' | 'TD3' } | null {
+function looksLikeTd1Start(line: string): boolean {
+  // TD1 doc code: I, A or C (often followed by <).
+  return /^[IAC]/.test(line);
+}
+
+function looksLikeTd3Start(line: string): boolean {
+  // TD3 doc code: P (passport), often "P<".
+  return /^P/.test(line);
+}
+
+export function extractMrzLines(
+  ocrText: string,
+  hint?: DocType,
+): { lines: string[]; format: 'TD1' | 'TD3' } | null {
   const candidates = ocrText
     .split(/\r?\n/)
     .map(normaliseLine)
@@ -35,43 +48,51 @@ export function extractMrzLines(ocrText: string, hint?: DocType): { lines: strin
 
   if (candidates.length === 0) return null;
 
-  const tryTd3 = (): string[] | null => {
-    for (let i = 0; i <= candidates.length - 2; i++) {
+  // Scan from the BOTTOM of the document — MRZ is always at the bottom of an
+  // ID page. Within that, prefer triples/pairs whose first line starts with a
+  // valid MRZ document code (I/A/C for TD1, P for TD3). Fall back to any
+  // shape-matching group if no doc-code anchor is found.
+
+  const findTd3 = (requireDocCode: boolean): string[] | null => {
+    for (let i = candidates.length - 2; i >= 0; i--) {
       const a = candidates[i];
       const b = candidates[i + 1];
-      if (Math.abs(a.length - 44) <= 4 && Math.abs(b.length - 44) <= 4) {
-        return [padOrTrim(a, 44), padOrTrim(b, 44)];
-      }
+      if (Math.abs(a.length - 44) > 4 || Math.abs(b.length - 44) > 4) continue;
+      if (requireDocCode && !looksLikeTd3Start(a)) continue;
+      return [padOrTrim(a, 44), padOrTrim(b, 44)];
     }
     return null;
   };
 
-  const tryTd1 = (): string[] | null => {
-    for (let i = 0; i <= candidates.length - 3; i++) {
+  const findTd1 = (requireDocCode: boolean): string[] | null => {
+    for (let i = candidates.length - 3; i >= 0; i--) {
       const a = candidates[i];
       const b = candidates[i + 1];
       const c = candidates[i + 2];
       if (
-        Math.abs(a.length - 30) <= 3 &&
-        Math.abs(b.length - 30) <= 3 &&
-        Math.abs(c.length - 30) <= 3
+        Math.abs(a.length - 30) > 3 ||
+        Math.abs(b.length - 30) > 3 ||
+        Math.abs(c.length - 30) > 3
       ) {
-        return [padOrTrim(a, 30), padOrTrim(b, 30), padOrTrim(c, 30)];
+        continue;
       }
+      if (requireDocCode && !looksLikeTd1Start(a)) continue;
+      return [padOrTrim(a, 30), padOrTrim(b, 30), padOrTrim(c, 30)];
     }
     return null;
   };
 
-  if (hint === 'national_id') {
-    const td1 = tryTd1();
-    if (td1) return { lines: td1, format: 'TD1' };
-    const td3 = tryTd3();
-    if (td3) return { lines: td3, format: 'TD3' };
-  } else {
-    const td3 = tryTd3();
-    if (td3) return { lines: td3, format: 'TD3' };
-    const td1 = tryTd1();
-    if (td1) return { lines: td1, format: 'TD1' };
+  const order: Array<'TD1' | 'TD3'> = hint === 'national_id' ? ['TD1', 'TD3'] : ['TD3', 'TD1'];
+
+  // First pass: require document-code anchor.
+  for (const fmt of order) {
+    const lines = fmt === 'TD1' ? findTd1(true) : findTd3(true);
+    if (lines) return { lines, format: fmt };
+  }
+  // Second pass: fall back to shape-only matching.
+  for (const fmt of order) {
+    const lines = fmt === 'TD1' ? findTd1(false) : findTd3(false);
+    if (lines) return { lines, format: fmt };
   }
   return null;
 }
